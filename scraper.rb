@@ -1,24 +1,37 @@
-# This is a template for a Ruby scraper on Morph (https://morph.io)
-# including some code snippets below that you should find helpful
+require 'nokogiri'
+require 'date'
+require 'scraperwiki'
+require 'digest'
 
-# require 'scraperwiki'
-# require 'mechanize'
-#
-# agent = Mechanize.new
-#
-# # Read in a page
-# page = agent.get("http://foo.com")
-#
-# # Find somehing on the page using css selectors
-# p page.at('div.content')
-#
-# # Write out to the sqlite database using scraperwiki library
-# ScraperWiki.save_sqlite(["name"], {"name" => "susan", "occupation" => "software developer"})
-#
-# # An arbitrary query against the database
-# ScraperWiki.select("* from data where 'name'='peter'")
+ScraperWiki.config = {db: 'data.sqlite', default_table_name: 'data'}
 
-# You don't have to do things with the Mechanize or ScraperWiki libraries. You can use whatever gems are installed
-# on Morph for Ruby (https://github.com/openaustralia/morph-docker-ruby/blob/master/Gemfile) and all that matters
-# is that your final data is written to an Sqlite database called data.sqlite in the current working directory which
-# has at least a table called data.
+url = 'http://visitbristol.co.uk/things-to-do/events-and-festivals'
+html = ScraperWiki.scrape(url)
+doc = Nokogiri.HTML(html)
+events = doc.css('.Highlight').map do |highlight|
+  name = highlight.at_css('h2.Name a')
+  title = name.text.strip
+  date_from = Date.parse(highlight.at_css('.Dates .From').text.strip)
+  date_to = Date.parse(highlight.at_css('.Dates .To').text.strip)
+  id = Digest::MD5.new
+  id.update(title)
+  id.update(date_from.to_s)
+  id.update(date_to.to_s)
+  {
+    id: id.hexdigest,
+    title: title,
+    image: highlight.at_css('.Image img')['src'],
+    link: name['href'],
+    date_from: Date.parse(highlight.at_css('.Dates .From').text.strip),
+    date_to: Date.parse(highlight.at_css('.Dates .To').text.strip),
+  }
+end
+
+events.each do |event|
+  if (ScraperWiki.select("* from data where id = ?", event[:id]).any? rescue false)
+    puts "Existing event found #{event[:id]} #{event[:title]}"
+    next
+  end
+  puts "Creating new event #{event[:id]} #{event[:title]}"
+  ScraperWiki.save_sqlite([:id], event)
+end
