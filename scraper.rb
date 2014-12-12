@@ -22,8 +22,8 @@ events = doc.css('.Highlight').map do |highlight|
     title: title,
     image: highlight.at_css('.Image img')['src'],
     link: name['href'],
-    date_from: Date.parse(highlight.at_css('.Dates .From').text.strip),
-    date_to: Date.parse(highlight.at_css('.Dates .To').text.strip),
+    date_from: date_from,
+    date_to: date_to,
   }
 end
 
