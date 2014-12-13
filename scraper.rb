@@ -4,7 +4,7 @@ require 'scraperwiki'
 require 'digest'
 require 'uri'
 
-ScraperWiki.config = {db: 'data.sqlite', default_table_name: 'data'}
+ScraperWiki.config = { db: 'data.sqlite', default_table_name: 'data' }
 
 def absolute_url(base_url, url)
   base_url = URI.parse(base_url)
@@ -34,12 +34,17 @@ events = doc.css('.Highlight').map do |highlight|
     image: image,
     link: link,
     date_from: date_from,
-    date_to: date_to,
+    date_to: date_to
   }
 end
 
 events.each do |event|
-  if (ScraperWiki.select("* from data where id = ?", event[:id]).any? rescue false)
+  event_exists = begin
+    ScraperWiki.select('* from data where id = ?', event[:id]).any?
+  rescue
+    false
+  end
+  if event_exists
     puts "Existing event found #{event[:id]} #{event[:title]}"
     next
   end
